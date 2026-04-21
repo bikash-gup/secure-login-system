@@ -167,7 +167,7 @@ def login():
         ip = request.remote_addr
 
         # -------- ADMIN LOGIN --------
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        if username.strip() == ADMIN_USERNAME and password.strip() == ADMIN_PASSWORD:
             session.clear()
             session['admin'] = True
             session['user'] = "admin"
