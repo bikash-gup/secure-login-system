@@ -33,6 +33,7 @@ body {
 
 <body>
 
+<!-- NAVBAR -->
 <nav class="navbar navbar-dark bg-dark">
   <div class="container-fluid">
     <span class="navbar-brand">🔐 Secure Login System - Admin Panel</span>
@@ -46,6 +47,14 @@ body {
 <div class="container mt-4">
 
 <h2 class="mb-4">Admin Security Dashboard</h2>
+
+<!-- SIM STATUS -->
+{% if sim_status %}
+<div class="alert alert-success alert-dismissible fade show">
+  <strong>Simulation Status:</strong> {{ sim_status }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 
 <!-- STATS -->
 <div class="row mb-4">
@@ -105,7 +114,7 @@ body {
   </div>
 </div>
 
-<!-- LOGS -->
+<!-- LOGIN LOGS -->
 <h4>Login Attempts</h4>
 
 <div class="table-responsive">
@@ -125,6 +134,7 @@ body {
 
 {% for log in logs %}
 <tr>
+
   <td>{{ log[1] }}</td>
   <td>{{ log[2] }}</td>
 
@@ -138,11 +148,15 @@ body {
     {% endif %}
   </td>
 
+  <!-- FIX: removed datetimeformat -->
   <td>{{ log[4] }}</td>
 
   <td>
-    <a href="/block_ip/{{ log[2] }}" class="btn btn-danger btn-sm">Block</a>
+    <a href="/block_ip/{{ log[2] }}" class="btn btn-danger btn-sm">
+      Block
+    </a>
   </td>
+
 </tr>
 {% endfor %}
 
@@ -151,7 +165,7 @@ body {
 </table>
 </div>
 
-<!-- BLOCKED -->
+<!-- BLOCKED IPS -->
 <h4 class="mt-5">Blocked IP Addresses</h4>
 
 <div class="table-responsive">
@@ -169,11 +183,16 @@ body {
 
 {% for b in blocked %}
 <tr>
+
   <td>{{ b[1] }}</td>
   <td>{{ b[2] }}</td>
+
   <td>
-    <a href="/unblock_ip/{{ b[1] }}" class="btn btn-success btn-sm">Unblock</a>
+    <a href="/unblock_ip/{{ b[1] }}" class="btn btn-success btn-sm">
+      Unblock
+    </a>
   </td>
+
 </tr>
 {% endfor %}
 
