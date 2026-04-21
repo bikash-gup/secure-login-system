@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Register</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+<style>
+body{
+background:#f5f7fa;
+}
+
+.card:hover{
+transform:scale(1.03);
+transition:0.3s;
+}
+
+.password-toggle{
+cursor:pointer;
+}
+
+#strengthBar{
+height:6px;
+border-radius:4px;
+margin-top:5px;
+}
+
+.strength-weak{background:red;width:33%;}
+.strength-medium{background:orange;width:66%;}
+.strength-strong{background:green;width:100%;}
+</style>
+
+</head>
+
+<body>
+
+<div class="container mt-5">
+
+<div class="card shadow p-4 mx-auto" style="max-width:430px;">
+
+<h3 class="text-center mb-4">🔐 Secure Login System</h3>
+
+<div id="alert-msg" class="alert alert-danger d-none"></div>
+
+<form method="POST" onsubmit="return validateForm()">
+
+<!-- USERNAME -->
+<div class="mb-3">
+<label class="form-label">Username</label>
+<div class="input-group">
+
+<span class="input-group-text">
+<i class="bi bi-person-fill"></i>
+</span>
+
+<input
+type="text"
+name="username"
+class="form-control"
+required
+minlength="4"
+placeholder="Enter username">
+
+</div>
+</div>
+
+
+<!-- PASSWORD -->
+<div class="mb-3">
+<label class="form-label">Password</label>
+
+<div class="input-group">
+
+<span class="input-group-text">
+<i class="bi bi-lock-fill"></i>
+</span>
+
+<input
+type="password"
+id="password"
+name="password"
+class="form-control"
+required
+pattern="^(?=.*[A-Za-z])(?=.*\d).{6,}$"
+placeholder="Minimum 6 characters">
+
+<span class="input-group-text password-toggle" onclick="togglePassword('password')">
+<i class="bi bi-eye-fill" id="togglePasswordIcon"></i>
+</span>
+
+</div>
+
+<small class="text-muted">
+Minimum 6 characters. Must include at least one letter and one number.
+</small>
+
+<div id="strengthBar"></div>
+<small id="strengthText"></small>
+
+</div>
+
+
+<!-- CONFIRM PASSWORD -->
+<div class="mb-3">
+
+<label class="form-label">Confirm Password</label>
+
+<div class="input-group">
+
+<span class="input-group-text">
+<i class="bi bi-lock-fill"></i>
+</span>
+
+<input
+type="password"
+id="confirm_password"
+name="confirm_password"
+class="form-control"
+required
+placeholder="Re-enter password">
+
+<span class="input-group-text password-toggle" onclick="togglePassword('confirm_password')">
+<i class="bi bi-eye-fill" id="toggleConfirmIcon"></i>
+</span>
+
+</div>
+
+</div>
+
+
+<button type="submit" class="btn btn-success w-100 mb-2">
+Register
+</button>
+
+</form>
+
+<hr>
+
+<p class="text-center">Already have an account?</p>
+
+<div class="text-center">
+<a href="/login" class="btn btn-primary btn-sm">
+<i class="bi bi-box-arrow-in-right"></i> Back to Login
+</a>
+</div>
+
+<p class="text-center text-muted mt-3">
+Your credentials are encrypted and protected against brute-force attacks.
+</p>
+
+</div>
+
+</div>
+
+
+<script>
+
+function togglePassword(id){
+
+var x=document.getElementById(id);
+
+var icon=(id==="password")
+?document.getElementById("togglePasswordIcon")
+:document.getElementById("toggleConfirmIcon");
+
+if(x.type==="password"){
+x.type="text";
+icon.classList.remove("bi-eye-fill");
+icon.classList.add("bi-eye-slash-fill");
+}
+else{
+x.type="password";
+icon.classList.remove("bi-eye-slash-fill");
+icon.classList.add("bi-eye-fill");
+}
+
+}
+
+
+// PASSWORD MATCH VALIDATION
+
+function validateForm(){
+
+var pw=document.getElementById("password").value;
+var cpw=document.getElementById("confirm_password").value;
+
+var alertBox=document.getElementById("alert-msg");
+
+if(pw!==cpw){
+
+alertBox.innerText="⚠ Passwords do not match!";
+alertBox.classList.remove("d-none");
+
+return false;
+
+}
+
+alertBox.classList.add("d-none");
+
+return true;
+
+}
+
+
+// PASSWORD STRENGTH CHECK
+
+document.getElementById("password").addEventListener("keyup",function(){
+
+var password=this.value;
+
+var strengthBar=document.getElementById("strengthBar");
+var strengthText=document.getElementById("strengthText");
+
+if(password.length<6){
+
+strengthBar.className="";
+strengthText.innerText="";
+
+return;
+
+}
+
+var score=0;
+
+if(/[A-Z]/.test(password)) score++;
+if(/[0-9]/.test(password)) score++;
+if(/[@$!%*?&#]/.test(password)) score++;
+
+if(score==1){
+
+strengthBar.className="strength-weak";
+strengthText.innerText="Weak password 🔴";
+
+}
+
+else if(score==2){
+
+strengthBar.className="strength-medium";
+strengthText.innerText="Medium strength 🟡";
+
+}
+
+else{
+
+strengthBar.className="strength-strong";
+strengthText.innerText="Strong password 🟢";
+
+}
+
+});
+
+</script>
+
+</body>
+</html>
