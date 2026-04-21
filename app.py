@@ -2,9 +2,14 @@ from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import bcrypt
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
-app.secret_key = "secret123"
+
+# ================= SESSION FIX (IMPORTANT FOR RENDER) =================
+app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key-123")
+app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
+app.config['SESSION_COOKIE_SECURE'] = True
 
 
 # ================= ADMIN CREDENTIALS =================
@@ -129,6 +134,7 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+
         username = request.form['username']
         password = request.form['password']
         confirm = request.form['confirm_password']
@@ -157,7 +163,7 @@ def register():
     return render_template('register.html')
 
 
-# ================= LOGIN (FIXED) =================
+# ================= LOGIN =================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -166,16 +172,17 @@ def login():
         password = request.form['password']
         ip = request.remote_addr
 
-        # -------- ADMIN LOGIN --------
+        # ---------- ADMIN LOGIN (FIRST CHECK) ----------
         if username.strip() == ADMIN_USERNAME and password.strip() == ADMIN_PASSWORD:
             session.clear()
-            session['admin'] = True
-            session['user'] = "admin"
-            return redirect('/admin')
+            session["admin"] = True
+            session["user"] = "admin"
+            session.modified = True
+            return redirect("/admin")
 
-        # -------- BLOCK CHECK --------
+        # ---------- BLOCK CHECK ----------
         if is_ip_blocked(ip):
-            return "⚠ IP temporarily blocked"
+            return "⚠ IP blocked"
 
         if count_failed_user(username) >= 5:
             return "⚠ Account locked"
@@ -184,7 +191,7 @@ def login():
             block_ip(ip)
             return "⚠ IP blocked"
 
-        # -------- USER CHECK --------
+        # ---------- USER CHECK ----------
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         cursor.execute("SELECT password_hash FROM users WHERE username=?", (username,))
@@ -195,14 +202,12 @@ def login():
             log_attempt(username, ip, "failed")
             return "⚠ Username does not exist"
 
-        # -------- PASSWORD CHECK --------
         if bcrypt.checkpw(password.encode(), user[0]):
             log_attempt(username, ip, "success")
             session.clear()
             session['user'] = username
             return redirect('/dashboard')
 
-        # -------- FAILED LOGIN --------
         log_attempt(username, ip, "failed")
         return "⚠ Invalid credentials"
 
@@ -212,7 +217,7 @@ def login():
 # ================= DASHBOARD =================
 @app.route('/dashboard')
 def dashboard():
-    if 'user' in session and not session.get('admin'):
+    if session.get('user') and not session.get('admin'):
         return render_template('dashboard.html', user=session['user'], role="user")
     return redirect('/login')
 
@@ -220,8 +225,8 @@ def dashboard():
 # ================= ADMIN =================
 @app.route('/admin')
 def admin():
-    if not session.get('admin'):
-        return "Access Denied"
+    if session.get("admin") != True:
+        return redirect("/login")
 
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -245,8 +250,8 @@ def admin():
 # ================= BLOCK / UNBLOCK =================
 @app.route('/block_ip/<ip>')
 def block(ip):
-    if not session.get('admin'):
-        return "Access Denied"
+    if not session.get("admin"):
+        return redirect("/login")
 
     block_ip(ip)
     return redirect('/admin')
@@ -254,8 +259,8 @@ def block(ip):
 
 @app.route('/unblock_ip/<ip>')
 def unblock(ip):
-    if not session.get('admin'):
-        return "Access Denied"
+    if not session.get("admin"):
+        return redirect("/login")
 
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -269,8 +274,8 @@ def unblock(ip):
 # ================= SIMULATION =================
 @app.route('/simulate_attack', methods=['POST'])
 def simulate_attack():
-    if not session.get('admin'):
-        return "Access Denied"
+    if not session.get("admin"):
+        return redirect("/login")
 
     ip = request.form['target_ip']
 
