@@ -2,14 +2,9 @@ from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import bcrypt
 from datetime import datetime, timedelta
-import os
 
 app = Flask(__name__)
-
-# ================= SESSION FIX (IMPORTANT FOR RENDER) =================
-app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key-123")
-app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
-app.config['SESSION_COOKIE_SECURE'] = True
+app.secret_key = "supersecretkey-change-this"
 
 
 # ================= ADMIN CREDENTIALS =================
@@ -134,7 +129,6 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-
         username = request.form['username']
         password = request.form['password']
         confirm = request.form['confirm_password']
@@ -168,21 +162,20 @@ def register():
 def login():
     if request.method == 'POST':
 
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
         ip = request.remote_addr
 
-        # ---------- ADMIN LOGIN (FIRST CHECK) ----------
-        if username.strip() == ADMIN_USERNAME and password.strip() == ADMIN_PASSWORD:
+        # ---------------- ADMIN LOGIN ----------------
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
-            session["admin"] = True
-            session["user"] = "admin"
-            session.modified = True
-            return redirect("/admin")
+            session['admin'] = True
+            session['user'] = "admin"
+            return redirect('/admin')
 
-        # ---------- BLOCK CHECK ----------
+        # ---------------- BLOCK CHECK ----------------
         if is_ip_blocked(ip):
-            return "⚠ IP blocked"
+            return "⚠ IP temporarily blocked"
 
         if count_failed_user(username) >= 5:
             return "⚠ Account locked"
@@ -191,7 +184,7 @@ def login():
             block_ip(ip)
             return "⚠ IP blocked"
 
-        # ---------- USER CHECK ----------
+        # ---------------- USER CHECK ----------------
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         cursor.execute("SELECT password_hash FROM users WHERE username=?", (username,))
@@ -222,11 +215,11 @@ def dashboard():
     return redirect('/login')
 
 
-# ================= ADMIN =================
+# ================= ADMIN DASHBOARD =================
 @app.route('/admin')
 def admin():
-    if session.get("admin") != True:
-        return redirect("/login")
+    if not session.get('admin'):
+        return redirect('/login')
 
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -250,8 +243,8 @@ def admin():
 # ================= BLOCK / UNBLOCK =================
 @app.route('/block_ip/<ip>')
 def block(ip):
-    if not session.get("admin"):
-        return redirect("/login")
+    if not session.get('admin'):
+        return redirect('/login')
 
     block_ip(ip)
     return redirect('/admin')
@@ -259,8 +252,8 @@ def block(ip):
 
 @app.route('/unblock_ip/<ip>')
 def unblock(ip):
-    if not session.get("admin"):
-        return redirect("/login")
+    if not session.get('admin'):
+        return redirect('/login')
 
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -274,10 +267,10 @@ def unblock(ip):
 # ================= SIMULATION =================
 @app.route('/simulate_attack', methods=['POST'])
 def simulate_attack():
-    if not session.get("admin"):
-        return redirect("/login")
+    if not session.get('admin'):
+        return redirect('/login')
 
-    ip = request.form['target_ip']
+    ip = request.form.get('target_ip')
 
     for _ in range(5):
         log_attempt("sim_user", ip, "failed")
