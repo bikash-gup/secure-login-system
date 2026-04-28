@@ -11,7 +11,7 @@ ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
 
-# ================= DATABASE =================
+# ================= DATABASE INIT =================
 def init_db():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
@@ -84,8 +84,8 @@ def block_ip(ip):
     blocked_until = (datetime.now() + timedelta(minutes=15)).isoformat()
 
     cursor.execute("""
-    INSERT OR REPLACE INTO blocked_ips(ip_address, blocked_until)
-    VALUES (?, ?)
+        INSERT OR REPLACE INTO blocked_ips(ip_address, blocked_until)
+        VALUES (?, ?)
     """, (ip, blocked_until))
 
     conn.commit()
@@ -97,9 +97,9 @@ def count_failed_user(username):
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT COUNT(*) FROM login_attempts
-    WHERE username=? AND status='failed'
-    AND datetime(timestamp) > datetime('now','-5 minutes')
+        SELECT COUNT(*) FROM login_attempts
+        WHERE username=? AND status='failed'
+        AND datetime(timestamp) > datetime('now','-5 minutes')
     """, (username,))
 
     count = cursor.fetchone()[0]
@@ -112,9 +112,9 @@ def count_failed_ip(ip):
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT COUNT(*) FROM login_attempts
-    WHERE ip_address=? AND status='failed'
-    AND datetime(timestamp) > datetime('now','-5 minutes')
+        SELECT COUNT(*) FROM login_attempts
+        WHERE ip_address=? AND status='failed'
+        AND datetime(timestamp) > datetime('now','-5 minutes')
     """, (ip,))
 
     count = cursor.fetchone()[0]
@@ -138,14 +138,14 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # ADMIN LOGIN
+        # -------- ADMIN LOGIN --------
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
             session["user"] = "admin"
             return redirect("/admin")
 
-        # BLOCK CHECK
+        # -------- SECURITY CHECKS --------
         if is_ip_blocked(ip):
             return "IP temporarily blocked"
 
@@ -156,7 +156,7 @@ def login():
             block_ip(ip)
             return "IP blocked"
 
-        # USER CHECK
+        # -------- USER CHECK --------
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
@@ -241,30 +241,17 @@ def admin():
 
     conn.close()
 
-    # ================= NEW ANALYTICS =================
-    failed_count = sum(1 for log in logs if log[3] == "failed")
-    success_count = sum(1 for log in logs if log[3] == "success")
-
-    # Attack Burst Pattern (last 10 min activity spikes)
-    burst_pattern = len(logs[:20])  # simple activity burst
-
-    # Username targeting heat (most attacked usernames)
-    username_map = {}
-    for log in logs:
-        u = log[1]
-        username_map[u] = username_map.get(u, 0) + 1
-
-    top_targets = sorted(username_map.items(), key=lambda x: x[1], reverse=True)[:5]
+    # ===== GRAPH DATA =====
+    success_count = sum(1 for l in logs if l[3] == "success")
+    failed_count = sum(1 for l in logs if l[3] == "failed")
 
     return render_template(
         "admin.html",
         logs=logs,
         blocked=blocked,
-        failed_count=failed_count,
+        sim_status=session.pop("sim_status", None),
         success_count=success_count,
-        burst_pattern=burst_pattern,
-        top_targets=top_targets,
-        sim_status=session.pop("sim_status", None)
+        failed_count=failed_count
     )
 
 
@@ -320,5 +307,6 @@ def logout():
     return redirect("/login")
 
 
+# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
