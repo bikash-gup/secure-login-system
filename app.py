@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import bcrypt
 from datetime import datetime, timedelta
-from collections import defaultdict
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -10,7 +9,6 @@ app.secret_key = "secret123"
 # ================= ADMIN =================
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
-
 
 # ================= DATABASE =================
 def init_db():
@@ -46,9 +44,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 init_db()
-
 
 # ================= HELPERS =================
 def log_attempt(username, ip, status):
@@ -122,7 +118,6 @@ def count_failed_ip(ip):
     conn.close()
     return count
 
-
 # ================= ROUTES =================
 @app.route("/")
 def home():
@@ -139,14 +134,13 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # ===== ADMIN LOGIN =====
+        # ADMIN
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
-            session["user"] = "admin"
             return redirect("/admin")
 
-        # ===== BLOCK CHECK =====
+        # BLOCK CHECK
         if is_ip_blocked(ip):
             return "IP temporarily blocked"
 
@@ -157,7 +151,7 @@ def login():
             block_ip(ip)
             return "IP blocked"
 
-        # ===== USER CHECK =====
+        # USER CHECK
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
@@ -241,35 +235,31 @@ def admin():
 
     conn.close()
 
-    # ================= ATTACK BURST PATTERN =================
-    burst_data = defaultdict(int)
+    # ================= GRAPH DATA =================
 
+    # Attack Burst Pattern
+    burst = {}
     for log in logs:
-        if log[3] == "failed":
-            time_key = log[4][:16]  # minute grouping
-            burst_data[time_key] += 1
+        key = log[4][:16]
+        burst[key] = burst.get(key, 0) + 1
 
-    burst_labels = list(burst_data.keys())[::-1][:20]
-    burst_values = [burst_data[k] for k in burst_labels]
+    burst_labels = list(burst.keys())[:10]
+    burst_values = list(burst.values())[:10]
 
-    # ================= USERNAME TARGETING HEAT =================
-    user_attack = defaultdict(int)
-
+    # Username Heat Map
+    heat = {}
     for log in logs:
-        if log[3] == "failed":
-            user_attack[log[1]] += 1
+        user = log[1]
+        heat[user] = heat.get(user, 0) + 1
 
-    top_users = sorted(user_attack.items(), key=lambda x: x[1], reverse=True)[:5]
-
-    user_labels = [u[0] for u in top_users]
-    user_values = [u[1] for u in top_users]
+    user_labels = list(heat.keys())[:10]
+    user_values = list(heat.values())[:10]
 
     return render_template(
         "admin.html",
         logs=logs,
         blocked=blocked,
         sim_status=session.pop("sim_status", None),
-
         burst_labels=burst_labels,
         burst_values=burst_values,
         user_labels=user_labels,
@@ -329,6 +319,5 @@ def logout():
     return redirect("/login")
 
 
-# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
