@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import bcrypt
 from datetime import datetime, timedelta
+from collections import defaultdict
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -11,7 +12,7 @@ ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
 
-# ================= DATABASE INIT =================
+# ================= DATABASE =================
 def init_db():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
@@ -84,8 +85,8 @@ def block_ip(ip):
     blocked_until = (datetime.now() + timedelta(minutes=15)).isoformat()
 
     cursor.execute("""
-        INSERT OR REPLACE INTO blocked_ips(ip_address, blocked_until)
-        VALUES (?, ?)
+    INSERT OR REPLACE INTO blocked_ips(ip_address, blocked_until)
+    VALUES (?, ?)
     """, (ip, blocked_until))
 
     conn.commit()
@@ -97,9 +98,9 @@ def count_failed_user(username):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT COUNT(*) FROM login_attempts
-        WHERE username=? AND status='failed'
-        AND datetime(timestamp) > datetime('now','-5 minutes')
+    SELECT COUNT(*) FROM login_attempts
+    WHERE username=? AND status='failed'
+    AND datetime(timestamp) > datetime('now','-5 minutes')
     """, (username,))
 
     count = cursor.fetchone()[0]
@@ -112,9 +113,9 @@ def count_failed_ip(ip):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT COUNT(*) FROM login_attempts
-        WHERE ip_address=? AND status='failed'
-        AND datetime(timestamp) > datetime('now','-5 minutes')
+    SELECT COUNT(*) FROM login_attempts
+    WHERE ip_address=? AND status='failed'
+    AND datetime(timestamp) > datetime('now','-5 minutes')
     """, (ip,))
 
     count = cursor.fetchone()[0]
@@ -138,14 +139,14 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # -------- ADMIN LOGIN --------
+        # ===== ADMIN LOGIN =====
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
             session["user"] = "admin"
             return redirect("/admin")
 
-        # -------- SECURITY CHECKS --------
+        # ===== BLOCK CHECK =====
         if is_ip_blocked(ip):
             return "IP temporarily blocked"
 
@@ -156,13 +157,12 @@ def login():
             block_ip(ip)
             return "IP blocked"
 
-        # -------- USER CHECK --------
+        # ===== USER CHECK =====
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
         cursor.execute("SELECT password_hash FROM users WHERE username=?", (username,))
         user = cursor.fetchone()
-
         conn.close()
 
         if not user:
@@ -241,17 +241,39 @@ def admin():
 
     conn.close()
 
-    # ===== GRAPH DATA =====
-    success_count = sum(1 for l in logs if l[3] == "success")
-    failed_count = sum(1 for l in logs if l[3] == "failed")
+    # ================= ATTACK BURST PATTERN =================
+    burst_data = defaultdict(int)
+
+    for log in logs:
+        if log[3] == "failed":
+            time_key = log[4][:16]  # minute grouping
+            burst_data[time_key] += 1
+
+    burst_labels = list(burst_data.keys())[::-1][:20]
+    burst_values = [burst_data[k] for k in burst_labels]
+
+    # ================= USERNAME TARGETING HEAT =================
+    user_attack = defaultdict(int)
+
+    for log in logs:
+        if log[3] == "failed":
+            user_attack[log[1]] += 1
+
+    top_users = sorted(user_attack.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    user_labels = [u[0] for u in top_users]
+    user_values = [u[1] for u in top_users]
 
     return render_template(
         "admin.html",
         logs=logs,
         blocked=blocked,
         sim_status=session.pop("sim_status", None),
-        success_count=success_count,
-        failed_count=failed_count
+
+        burst_labels=burst_labels,
+        burst_values=burst_values,
+        user_labels=user_labels,
+        user_values=user_values
     )
 
 
