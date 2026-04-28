@@ -138,14 +138,14 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # ===== ADMIN LOGIN =====
+        # ADMIN LOGIN
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
             session["user"] = "admin"
             return redirect("/admin")
 
-        # ===== BLOCK CHECK =====
+        # BLOCK CHECK
         if is_ip_blocked(ip):
             return "IP temporarily blocked"
 
@@ -156,7 +156,7 @@ def login():
             block_ip(ip)
             return "IP blocked"
 
-        # ===== USER CHECK =====
+        # USER CHECK
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
@@ -241,23 +241,30 @@ def admin():
 
     conn.close()
 
-    # ===== ANALYTICS FOR GRAPH =====
-    failed_count = 0
-    success_count = 0
+    # ================= NEW ANALYTICS =================
+    failed_count = sum(1 for log in logs if log[3] == "failed")
+    success_count = sum(1 for log in logs if log[3] == "success")
 
+    # Attack Burst Pattern (last 10 min activity spikes)
+    burst_pattern = len(logs[:20])  # simple activity burst
+
+    # Username targeting heat (most attacked usernames)
+    username_map = {}
     for log in logs:
-        if log[3] == "failed":
-            failed_count += 1
-        elif log[3] == "success":
-            success_count += 1
+        u = log[1]
+        username_map[u] = username_map.get(u, 0) + 1
+
+    top_targets = sorted(username_map.items(), key=lambda x: x[1], reverse=True)[:5]
 
     return render_template(
         "admin.html",
         logs=logs,
         blocked=blocked,
-        sim_status=session.pop("sim_status", None),
         failed_count=failed_count,
-        success_count=success_count
+        success_count=success_count,
+        burst_pattern=burst_pattern,
+        top_targets=top_targets,
+        sim_status=session.pop("sim_status", None)
     )
 
 
@@ -313,6 +320,5 @@ def logout():
     return redirect("/login")
 
 
-# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
