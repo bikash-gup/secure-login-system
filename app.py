@@ -10,6 +10,7 @@ app.secret_key = "secret123"
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
+
 # ================= DATABASE =================
 def init_db():
     conn = sqlite3.connect("database.db")
@@ -44,7 +45,9 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 init_db()
+
 
 # ================= HELPERS =================
 def log_attempt(username, ip, status):
@@ -118,6 +121,7 @@ def count_failed_ip(ip):
     conn.close()
     return count
 
+
 # ================= ROUTES =================
 @app.route("/")
 def home():
@@ -134,10 +138,11 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # ADMIN
+        # ADMIN LOGIN
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
+            session["user"] = "admin"
             return redirect("/admin")
 
         # BLOCK CHECK
@@ -235,18 +240,7 @@ def admin():
 
     conn.close()
 
-    # ================= GRAPH DATA =================
-
-    # Attack Burst Pattern
-    burst = {}
-    for log in logs:
-        key = log[4][:16]
-        burst[key] = burst.get(key, 0) + 1
-
-    burst_labels = list(burst.keys())[:10]
-    burst_values = list(burst.values())[:10]
-
-    # Username Heat Map
+    # Username Targeting Heat ONLY
     heat = {}
     for log in logs:
         user = log[1]
@@ -260,8 +254,6 @@ def admin():
         logs=logs,
         blocked=blocked,
         sim_status=session.pop("sim_status", None),
-        burst_labels=burst_labels,
-        burst_values=burst_values,
         user_labels=user_labels,
         user_values=user_values
     )
