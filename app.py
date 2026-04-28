@@ -147,7 +147,7 @@ def login():
 
         # ===== BLOCK CHECK =====
         if is_ip_blocked(ip):
-            return "IP blocked temporarily"
+            return "IP temporarily blocked"
 
         if count_failed_user(username) >= 5:
             return "Account locked"
@@ -241,7 +241,24 @@ def admin():
 
     conn.close()
 
-    return render_template("admin.html", logs=logs, blocked=blocked)
+    # ===== ANALYTICS FOR GRAPH =====
+    failed_count = 0
+    success_count = 0
+
+    for log in logs:
+        if log[3] == "failed":
+            failed_count += 1
+        elif log[3] == "success":
+            success_count += 1
+
+    return render_template(
+        "admin.html",
+        logs=logs,
+        blocked=blocked,
+        sim_status=session.pop("sim_status", None),
+        failed_count=failed_count,
+        success_count=success_count
+    )
 
 
 # ================= BLOCK =================
@@ -254,6 +271,7 @@ def block(ip):
     return redirect("/admin")
 
 
+# ================= UNBLOCK =================
 @app.route("/unblock_ip/<ip>")
 def unblock(ip):
     if not session.get("admin"):

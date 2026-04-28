@@ -5,6 +5,9 @@
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+<!-- CHART.JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {
   background: #f5f7fa;
@@ -90,6 +93,14 @@ body {
 
 </div>
 
+<!-- 🔥 BRUTE FORCE GRAPH -->
+<div class="card shadow mb-4">
+  <div class="card-body">
+    <h5>📊 Brute Force Intelligence Graph</h5>
+    <canvas id="attackChart"></canvas>
+  </div>
+</div>
+
 <!-- ATTACK SIMULATION -->
 <div class="card shadow mb-4">
   <div class="card-body">
@@ -148,7 +159,6 @@ body {
     {% endif %}
   </td>
 
-  <!-- FIX: removed datetimeformat -->
   <td>{{ log[4] }}</td>
 
   <td>
@@ -202,6 +212,38 @@ body {
 </div>
 
 </div>
+
+<!-- 📊 CHART SCRIPT -->
+<script>
+const ctx = document.getElementById('attackChart');
+
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Successful Logins', 'Failed Logins'],
+        datasets: [{
+            label: 'Login Activity',
+            data: [
+                {{ logs|selectattr(3, 'equalto', 'success')|list|length }},
+                {{ logs|selectattr(3, 'equalto', 'failed')|list|length }}
+            ],
+            backgroundColor: ['#198754', '#dc3545'],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
