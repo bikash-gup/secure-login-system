@@ -235,16 +235,6 @@ def admin():
     cursor.execute("SELECT * FROM blocked_ips")
     blocked = cursor.fetchall()
 
-    # ================= ATTACK BURST PATTERN =================
-    burst = {}
-    for log in logs:
-        minute = log[4][:16]  # YYYY-MM-DD HH:MM
-        burst[minute] = burst.get(minute, 0) + 1
-
-    sorted_burst = sorted(burst.items())[-10:]
-    burst_labels = [b[0] for b in sorted_burst]
-    burst_values = [b[1] for b in sorted_burst]
-
     # ================= USERNAME TARGETING HEAT =================
     cursor.execute("SELECT username FROM users")
     registered_users = set([row[0] for row in cursor.fetchall()])
@@ -257,15 +247,15 @@ def admin():
 
     sorted_heat = sorted(heat.items(), key=lambda x: x[1], reverse=True)
 
-    user_labels = [item[0] for item in sorted_heat[:10]]
-    user_values = [item[1] for item in sorted_heat[:10]]
+    user_labels = [u[0] for u in sorted_heat[:10]]
+    user_values = [u[1] for u in sorted_heat[:10]]
 
     user_colors = []
     for user in user_labels:
         if user in registered_users:
-            user_colors.append("#198754")  # green
+            user_colors.append("#198754")  # GREEN = registered
         else:
-            user_colors.append("#dc3545")  # red
+            user_colors.append("#dc3545")  # RED = unknown
 
     conn.close()
 
@@ -274,8 +264,6 @@ def admin():
         logs=logs,
         blocked=blocked,
         sim_status=session.pop("sim_status", None),
-        burst_labels=burst_labels,
-        burst_values=burst_values,
         user_labels=user_labels,
         user_values=user_values,
         user_colors=user_colors

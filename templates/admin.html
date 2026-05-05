@@ -5,7 +5,6 @@
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-<!-- CHART.JS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -91,21 +90,14 @@ body {
 
 </div>
 
-<!-- 🔥 ATTACK BURST PATTERN -->
-<div class="card shadow mb-4">
-  <div class="card-body">
-    <h5>🔥 Attack Burst Pattern</h5>
-    <canvas id="burstChart"></canvas>
-  </div>
-</div>
-
 <!-- 🎯 USERNAME TARGETING HEAT -->
 <div class="card shadow mb-4">
   <div class="card-body">
     <h5>🎯 Username Targeting Heat</h5>
     <canvas id="heatChart"></canvas>
+
     <small class="text-muted">
-      🟢 Registered Users | 🔴 Unknown (Potential Attack Targets)
+      🟢 Registered Users &nbsp;&nbsp; 🔴 Unknown / Attack Targets
     </small>
   </div>
 </div>
@@ -221,22 +213,6 @@ body {
 
 <!-- 📊 CHART SCRIPT -->
 <script>
-const burstCtx = document.getElementById('burstChart');
-
-new Chart(burstCtx, {
-    type: 'line',
-    data: {
-        labels: {{ burst_labels | tojson }},
-        datasets: [{
-            label: 'Attack Burst Pattern',
-            data: {{ burst_values | tojson }},
-            borderColor: 'red',
-            tension: 0.3,
-            fill: false
-        }]
-    }
-});
-
 const heatCtx = document.getElementById('heatChart');
 
 new Chart(heatCtx, {
