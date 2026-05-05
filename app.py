@@ -118,13 +118,13 @@ def count_failed_ip(ip):
     conn.close()
     return count
 
+
 # ================= ROUTES =================
 @app.route("/")
 def home():
     return redirect("/login")
 
 
-# ================= LOGIN =================
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
@@ -175,7 +175,6 @@ def login():
     return render_template("login.html")
 
 
-# ================= REGISTER =================
 @app.route("/register", methods=["GET", "POST"])
 def register():
 
@@ -209,7 +208,6 @@ def register():
     return render_template("register.html")
 
 
-# ================= DASHBOARD =================
 @app.route("/dashboard")
 def dashboard():
     if "user" in session and not session.get("admin"):
@@ -217,7 +215,6 @@ def dashboard():
     return redirect("/login")
 
 
-# ================= ADMIN =================
 @app.route("/admin")
 def admin():
 
@@ -227,19 +224,19 @@ def admin():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
 
-    # LOGS
     cursor.execute("SELECT * FROM login_attempts ORDER BY id DESC")
     logs = cursor.fetchall()
 
-    # BLOCKED IPS
     cursor.execute("SELECT * FROM blocked_ips")
     blocked = cursor.fetchall()
 
-    # ================= USERNAME TARGETING HEAT =================
+    # ================= REGISTERED USERS =================
     cursor.execute("SELECT username FROM users")
     registered_users = set([row[0] for row in cursor.fetchall()])
 
+    # ================= USERNAME TARGETING HEAT (THREAT LEVEL 1–5) =================
     heat = {}
+
     for log in logs:
         if log[3] == "failed":
             user = log[1]
@@ -247,15 +244,30 @@ def admin():
 
     sorted_heat = sorted(heat.items(), key=lambda x: x[1], reverse=True)
 
-    user_labels = [u[0] for u in sorted_heat[:10]]
-    user_values = [u[1] for u in sorted_heat[:10]]
-
+    user_labels = []
+    user_values = []
     user_colors = []
-    for user in user_labels:
-        if user in registered_users:
-            user_colors.append("#198754")  # GREEN = registered
+
+    for user, count in sorted_heat[:10]:
+
+        if count <= 1:
+            level = 1
+        elif count == 2:
+            level = 2
+        elif count == 3:
+            level = 3
+        elif count == 4:
+            level = 4
         else:
-            user_colors.append("#dc3545")  # RED = unknown
+            level = 5
+
+        user_labels.append(user)
+        user_values.append(level)
+
+        if user in registered_users:
+            user_colors.append("#198754")  # green
+        else:
+            user_colors.append("#dc3545")  # red
 
     conn.close()
 
@@ -270,7 +282,6 @@ def admin():
     )
 
 
-# ================= BLOCK =================
 @app.route("/block_ip/<ip>")
 def block(ip):
     if not session.get("admin"):
@@ -280,7 +291,6 @@ def block(ip):
     return redirect("/admin")
 
 
-# ================= UNBLOCK =================
 @app.route("/unblock_ip/<ip>")
 def unblock(ip):
     if not session.get("admin"):
@@ -295,7 +305,6 @@ def unblock(ip):
     return redirect("/admin")
 
 
-# ================= SIMULATION =================
 @app.route("/simulate_attack", methods=["POST"])
 def simulate_attack():
 
@@ -315,13 +324,11 @@ def simulate_attack():
     return redirect("/admin")
 
 
-# ================= LOGOUT =================
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
 
 
-# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
