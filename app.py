@@ -123,7 +123,7 @@ def count_failed_ip(ip):
 def home():
     return redirect("/login")
 
-
+# ================= LOGIN =================
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
@@ -133,11 +133,13 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
+        # ADMIN LOGIN
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
             return redirect("/admin")
 
+        # BLOCK CHECK
         if is_ip_blocked(ip):
             return "IP temporarily blocked"
 
@@ -148,6 +150,7 @@ def login():
             block_ip(ip)
             return "IP blocked"
 
+        # USER CHECK
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
@@ -170,7 +173,7 @@ def login():
 
     return render_template("login.html")
 
-
+# ================= REGISTER =================
 @app.route("/register", methods=["GET", "POST"])
 def register():
 
@@ -203,13 +206,12 @@ def register():
 
     return render_template("register.html")
 
-
+# ================= DASHBOARD =================
 @app.route("/dashboard")
 def dashboard():
     if "user" in session and not session.get("admin"):
         return render_template("dashboard.html", user=session["user"])
     return redirect("/login")
-
 
 # ================= ADMIN =================
 @app.route("/admin")
@@ -227,58 +229,43 @@ def admin():
     cursor.execute("SELECT * FROM blocked_ips")
     blocked = cursor.fetchall()
 
-    # REGISTERED USERS
+    conn.close()
+
+    # ================= USER HEAT (1–5 SCALE) =================
+    cursor = sqlite3.connect("database.db").cursor()
     cursor.execute("SELECT username FROM users")
-    registered_users = set([r[0] for r in cursor.fetchall()])
+    registered = set([u[0] for u in cursor.fetchall()])
 
-    # ================= THREAT LEVEL HEAT =================
     heat = {}
-
     for log in logs:
         if log[3] == "failed":
-            user = log[1]
-            heat[user] = heat.get(user, 0) + 1
+            heat[log[1]] = heat.get(log[1], 0) + 1
 
-    sorted_heat = sorted(heat.items(), key=lambda x: x[1], reverse=True)
+    labels = list(heat.keys())[:10]
 
-    user_labels = []
-    user_values = []
-    user_colors = []
+    values = []
+    colors = []
 
-    for user, count in sorted_heat[:10]:
+    for user in labels:
+        score = min(5, heat[user])  # FIXED SCALE 1–5
+        values.append(score)
 
-        if count <= 1:
-            level = 1
-        elif count == 2:
-            level = 2
-        elif count == 3:
-            level = 3
-        elif count == 4:
-            level = 4
+        if user in registered:
+            colors.append("#198754")  # green
         else:
-            level = 5
-
-        user_labels.append(user)
-        user_values.append(level)
-
-        if user in registered_users:
-            user_colors.append("#198754")
-        else:
-            user_colors.append("#dc3545")
-
-    conn.close()
+            colors.append("#dc3545")  # red
 
     return render_template(
         "admin.html",
         logs=logs,
-        blocked=blocked,   # ✅ IMPORTANT: KEEP IP BLOCK TAB
+        blocked=blocked,
         sim_status=session.pop("sim_status", None),
-        user_labels=user_labels,
-        user_values=user_values,
-        user_colors=user_colors
+        user_labels=labels,
+        user_values=values,
+        user_colors=colors
     )
 
-
+# ================= BLOCK =================
 @app.route("/block_ip/<ip>")
 def block(ip):
     if not session.get("admin"):
@@ -287,7 +274,7 @@ def block(ip):
     block_ip(ip)
     return redirect("/admin")
 
-
+# ================= UNBLOCK =================
 @app.route("/unblock_ip/<ip>")
 def unblock(ip):
     if not session.get("admin"):
@@ -301,7 +288,7 @@ def unblock(ip):
 
     return redirect("/admin")
 
-
+# ================= SIMULATION =================
 @app.route("/simulate_attack", methods=["POST"])
 def simulate_attack():
 
@@ -317,15 +304,13 @@ def simulate_attack():
         block_ip(ip)
 
     session["sim_status"] = f"Attack simulated for {ip}"
-
     return redirect("/admin")
 
-
+# ================= LOGOUT =================
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
-
 
 if __name__ == "__main__":
     app.run(debug=True)
