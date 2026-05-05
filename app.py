@@ -134,7 +134,7 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # ADMIN
+        # ADMIN LOGIN
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
@@ -227,33 +227,47 @@ def admin():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
 
+    # LOGS
     cursor.execute("SELECT * FROM login_attempts ORDER BY id DESC")
     logs = cursor.fetchall()
 
+    # BLOCKED IPS
     cursor.execute("SELECT * FROM blocked_ips")
     blocked = cursor.fetchall()
 
-    conn.close()
-
-    # ================= GRAPH DATA =================
-
-    # Attack Burst Pattern
+    # ================= ATTACK BURST PATTERN =================
     burst = {}
     for log in logs:
-        key = log[4][:16]
-        burst[key] = burst.get(key, 0) + 1
+        minute = log[4][:16]  # YYYY-MM-DD HH:MM
+        burst[minute] = burst.get(minute, 0) + 1
 
-    burst_labels = list(burst.keys())[:10]
-    burst_values = list(burst.values())[:10]
+    sorted_burst = sorted(burst.items())[-10:]
+    burst_labels = [b[0] for b in sorted_burst]
+    burst_values = [b[1] for b in sorted_burst]
 
-    # Username Heat Map
+    # ================= USERNAME TARGETING HEAT =================
+    cursor.execute("SELECT username FROM users")
+    registered_users = set([row[0] for row in cursor.fetchall()])
+
     heat = {}
     for log in logs:
-        user = log[1]
-        heat[user] = heat.get(user, 0) + 1
+        if log[3] == "failed":
+            user = log[1]
+            heat[user] = heat.get(user, 0) + 1
 
-    user_labels = list(heat.keys())[:10]
-    user_values = list(heat.values())[:10]
+    sorted_heat = sorted(heat.items(), key=lambda x: x[1], reverse=True)
+
+    user_labels = [item[0] for item in sorted_heat[:10]]
+    user_values = [item[1] for item in sorted_heat[:10]]
+
+    user_colors = []
+    for user in user_labels:
+        if user in registered_users:
+            user_colors.append("#198754")  # green
+        else:
+            user_colors.append("#dc3545")  # red
+
+    conn.close()
 
     return render_template(
         "admin.html",
@@ -263,7 +277,8 @@ def admin():
         burst_labels=burst_labels,
         burst_values=burst_values,
         user_labels=user_labels,
-        user_values=user_values
+        user_values=user_values,
+        user_colors=user_colors
     )
 
 
@@ -319,5 +334,6 @@ def logout():
     return redirect("/login")
 
 
+# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
