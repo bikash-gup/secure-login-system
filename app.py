@@ -118,7 +118,6 @@ def count_failed_ip(ip):
     conn.close()
     return count
 
-
 # ================= ROUTES =================
 @app.route("/")
 def home():
@@ -134,13 +133,11 @@ def login():
         password = request.form["password"].strip()
         ip = request.remote_addr
 
-        # ADMIN LOGIN
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.clear()
             session["admin"] = True
             return redirect("/admin")
 
-        # BLOCK CHECK
         if is_ip_blocked(ip):
             return "IP temporarily blocked"
 
@@ -151,7 +148,6 @@ def login():
             block_ip(ip)
             return "IP blocked"
 
-        # USER CHECK
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
@@ -215,6 +211,7 @@ def dashboard():
     return redirect("/login")
 
 
+# ================= ADMIN =================
 @app.route("/admin")
 def admin():
 
@@ -230,11 +227,11 @@ def admin():
     cursor.execute("SELECT * FROM blocked_ips")
     blocked = cursor.fetchall()
 
-    # ================= REGISTERED USERS =================
+    # REGISTERED USERS
     cursor.execute("SELECT username FROM users")
-    registered_users = set([row[0] for row in cursor.fetchall()])
+    registered_users = set([r[0] for r in cursor.fetchall()])
 
-    # ================= USERNAME TARGETING HEAT (THREAT LEVEL 1–5) =================
+    # ================= THREAT LEVEL HEAT =================
     heat = {}
 
     for log in logs:
@@ -265,16 +262,16 @@ def admin():
         user_values.append(level)
 
         if user in registered_users:
-            user_colors.append("#198754")  # green
+            user_colors.append("#198754")
         else:
-            user_colors.append("#dc3545")  # red
+            user_colors.append("#dc3545")
 
     conn.close()
 
     return render_template(
         "admin.html",
         logs=logs,
-        blocked=blocked,
+        blocked=blocked,   # ✅ IMPORTANT: KEEP IP BLOCK TAB
         sim_status=session.pop("sim_status", None),
         user_labels=user_labels,
         user_values=user_values,
